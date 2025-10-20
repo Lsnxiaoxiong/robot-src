@@ -9,7 +9,7 @@ from flask import Response, current_app
 from src.utils.annotation import enforce_types
 from src.utils.resp import Result
 from src.utils.robot_enum import ActionGroup, RobotRespCode
-from src.w02.robot_action import Action, ActionStatus
+from src.w02.robot_action import Action
 
 
 from src.w02.walk_controller import WalkController
@@ -33,7 +33,7 @@ class RobotManager:
             return Result.failed(RobotRespCode.ACTION_NOT_FOUND)
         action: Action = self.action_dict[ActionGroup[action_name]]
         
-        if action.is_running() or not action.starting_check().can_start:
+        if action.is_running() or not action.can_start():
             return Result.failed(RobotRespCode.ACTION_ALREADY_RUNNING)
         
         logger.info(f"Starting action: {ActionGroup[action_name]}")

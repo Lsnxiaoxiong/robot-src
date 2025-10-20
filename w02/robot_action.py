@@ -4,17 +4,21 @@ from enum import Enum
 from typing import Optional
 import logging
 
-from src.utils.resp import CanStartResult
-from src.utils.robot_enum import ActionStatus, RobotRespCode
-
- 
+from src.utils.robot_enum import RobotRespCode
 
 
-
+# 定义动作状态
+class ActionEnum(Enum):
+    CREATED = "CREATED"
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    STOPPED = "STOPPED"
+    FAILED = "FAILED"
 
 
 class Action:
-    _status: ActionStatus
+    _status: ActionEnum
     _thread: Optional[threading.Thread]
     _run_event: threading.Event
     _stop_event: threading.Event
@@ -22,67 +26,66 @@ class Action:
     name: str
 
     def __init__(self, name="undefined") -> None:
-        self._status = ActionStatus.CREATED
+        self._status = ActionEnum.CREATED
         self._thread = None
         self._run_event = threading.Event()
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
-        
         self.name = name
 
     def is_created(self) -> bool:
-        return self._status == ActionStatus.CREATED
+        return self._status == ActionEnum.CREATED
 
     def is_undefined(self) -> bool:
         return self.name == "undefined"
 
     def is_running(self) -> bool:
-        return self._status == ActionStatus.RUNNING
+        return self._status == ActionEnum.RUNNING
 
     def is_paused(self) -> bool:
-        return self._status == ActionStatus.PAUSED
+        return self._status == ActionEnum.PAUSED
 
     def is_stopped(self) -> bool:
         return self._stop_event.is_set()
 
-    def starting_check(self) -> CanStartResult:
+    def can_start(self) -> bool:
         if self.is_running():
-            return CanStartResult.failed(RobotRespCode.ACTION_IS_RUNNING)
+            return False
         if self.is_paused():
-            return CanStartResult.failed(RobotRespCode.ACTION_IS_PAUSED)
-        if self.is_stopped():
-            return CanStartResult.failed(RobotRespCode.ACTION_IS_STOPPED)
+            return False
         if self._thread is not None and self._thread.is_alive():
-            return CanStartResult.failed(RobotRespCode.ACTION_IS_RUNNING)
-
-        return CanStartResult.success()
+            return False
+        return True
 
     def start(self) -> None:
-        if not self.starting_check().can_start:
+        if not self.can_start():
             return
         with self._lock:
-            if not self.starting_check().can_start:
+            if not self.can_start():
                 return
-            self._status = ActionStatus.RUNNING
+            self._stop_event.clear()
+            self._status = ActionEnum.RUNNING
             self._run_event.set()
             try:
-                self._thread = threading.Thread(target=self.proxy_method, name=f"{self.name}-thread")
+                self._thread = threading.Thread(target=self.run_action, name=f"{self.name}-thread")
                 self._thread.start()
+                print(f"{self.name} started")
             except:
-                self._status = ActionStatus.FAILED
+                self._stop_event.set()
+                self._status = ActionEnum.FAILED
                 self._thread = None
                 self._run_event.clear()
                 raise RuntimeError("Failed to start the thread")
 
     def pause(self) -> None:
-        self._status = ActionStatus.PAUSED
+        self._status = ActionEnum.PAUSED
         self._run_event.clear()
 
     def check_pause(self) -> None:
         self._run_event.wait()
 
     def resume(self) -> None:
-        self._status = ActionStatus.RUNNING
+        self._status = ActionEnum.RUNNING
         self._run_event.set()
 
     def before_stop(self) -> None:
@@ -90,21 +93,14 @@ class Action:
 
     def stop(self) -> None:
         self.before_stop()
-        self._status = ActionStatus.STOPPED
+        self._status = ActionEnum.STOPPED
         self._stop_event.set()
         self._run_event.set()
         if self._thread:
             self._thread.join()
         self._thread = None
-        self.after_stop()
-        self._status = ActionStatus.CREATED
-        self._stop_event.clear()
-        self._run_event.clear()
-    
-    def after_stop(self) -> None:
-        pass
 
-    def proxy_method(self) -> None:
+    def run_action(self) -> None:
         """
         eg:
         while not self.is_stopped():
