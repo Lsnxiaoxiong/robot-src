@@ -110,4 +110,4 @@ class Action:
                 time.sleep(1)
         :return: None
         """
-        raise NotImplementedError("Please implement the proxy_method in subclass")
+        raise NotImplementedError("Please implement the run_action in subclass")

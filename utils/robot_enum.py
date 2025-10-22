@@ -12,8 +12,18 @@ class RobotRespCode(Enum):
     
 
 class ActionGroup(Enum):
-    WALK_FORWARD = 'go_forward_one_step',
-    DEMO = 'action_demo'
+    """
+    机器人动作组，name对应Tonypi/ActionGroups库中的动作组名称
+    """
+    WALK_FORWARD = 'go_forward_one_step'
+    RIGHT_MOVE = 'right_move_40'
+    LEFT_MOVE = 'left_move_40'
+    BACK_ONE_STEP = 'back_one_step'
+    TURN_LEFT = 'turn_left'
+    TURN_RIGHT = 'turn_right'
+
+    def __init__(self, action_name: str):
+        self.action_name = action_name
 
 # 定义动作状态
 class ActionStatus(Enum):

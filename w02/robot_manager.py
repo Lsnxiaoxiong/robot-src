@@ -9,6 +9,7 @@ from flask import Response, current_app
 from src.utils.annotation import enforce_types
 from src.utils.resp import Result
 from src.utils.robot_enum import ActionGroup, RobotRespCode
+from src.w02.custom_controller import CustomController
 from src.w02.robot_action import Action
 
 
@@ -23,8 +24,11 @@ class RobotManager:
     action_dict: dict[ActionGroup, Action]
     
     def __init__(self) -> None:
-        self.action_dict = {
-            ActionGroup.WALK_FORWARD: WalkController(),
+        self.action_dict: dict[ActionGroup, Action] = {
+            # ActionGroup.WALK_FORWARD: WalkController(),
+            # ActionGroup.DEMO: ActionDemo(),
+        action: CustomController(action.action_name)
+        for action in ActionGroup
         }
         
     @enforce_types

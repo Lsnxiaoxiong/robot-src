@@ -3,10 +3,11 @@ import threading
 from flask import Blueprint, Response, jsonify, request, current_app
 
 from src.utils.resp import Result
-from src.utils.robot_enum import ActionGroup
+from src.utils.robot_enum import ActionGroup, RobotRespCode
 from src.w02.robot_manager import RobotManager
 from hiwonder.Controller import Controller
 import hiwonder.ros_robot_controller_sdk as rrc
+import hiwonder.ActionGroupControl as AGC
 
 robot_bp = Blueprint('robot', __name__)
 logger = logging.getLogger(__name__)
@@ -63,6 +64,20 @@ def turn_head():
     return Result.success(data={
         "servo_id": servo_id,
         "pulse": pulse
+    })
+
+@robot_bp.route('/run_once', methods=['GET'])
+def run_once() -> Response:
+    """
+    执行一次动作组
+    :return: 响应结果
+    """
+    action_name = request.args.get('action_name')
+    if action_name is None:
+        return Result.failed(RobotRespCode.MISSING_PARAMETER)
+    AGC.runActionGroup(action_name)
+    return Result.success(data={
+        "action_name": action_name
     })
 
 @robot_bp.route('/robotTest', methods=['GET'])
